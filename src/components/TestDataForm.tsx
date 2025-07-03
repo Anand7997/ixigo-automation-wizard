@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +26,26 @@ interface TestData {
   testType?: string;
 }
 
+interface BaseField {
+  key: string;
+  label: string;
+  type: string;
+  icon: React.ComponentType<any>;
+  description: string;
+}
+
+interface SelectField extends BaseField {
+  type: 'select';
+  options: string[];
+}
+
+interface InputField extends BaseField {
+  type: 'text' | 'date' | 'number';
+  placeholder?: string;
+}
+
+type FormField = SelectField | InputField;
+
 interface TestDataFormProps {
   mode: BookingMode;
   onSubmit: (data: TestData) => void;
@@ -49,8 +68,8 @@ const TestDataForm: React.FC<TestDataFormProps> = ({ mode, onSubmit, onBack }) =
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const getFieldsForMode = () => {
-    const commonFields = [
+  const getFieldsForMode = (): FormField[] => {
+    const commonFields: FormField[] = [
       { key: 'testCaseId', label: 'Test Case ID', type: 'text', icon: Database, placeholder: `${mode.toUpperCase().substring(0, 2)}-001`, description: 'Unique identifier for this test case' }
     ];
 
@@ -152,7 +171,7 @@ const TestDataForm: React.FC<TestDataFormProps> = ({ mode, onSubmit, onBack }) =
                   <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
                 </SelectTrigger>
                 <SelectContent>
-                  {field.options?.map((option) => (
+                  {(field as SelectField).options.map((option) => (
                     <SelectItem key={option} value={option}>
                       {option}
                     </SelectItem>
@@ -163,7 +182,7 @@ const TestDataForm: React.FC<TestDataFormProps> = ({ mode, onSubmit, onBack }) =
               <Input
                 id={field.key}
                 type={field.type}
-                placeholder={field.placeholder}
+                placeholder={(field as InputField).placeholder}
                 value={formData[field.key as keyof TestData] || ''}
                 onChange={(e) => handleInputChange(
                   field.key as keyof TestData, 
@@ -181,16 +200,16 @@ const TestDataForm: React.FC<TestDataFormProps> = ({ mode, onSubmit, onBack }) =
             
             {(field.key === 'source' || field.key === 'destination') && (
               <div className="text-xs text-gray-500">
-                <span className="font-medium">{popularDestinations[mode].description}:</span>
+                <span className="font-medium">Popular destinations:</span>
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {popularDestinations[mode].cities.map((city, index) => (
+                  {['Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad'].map((city, index, arr) => (
                     <button
                       key={city}
                       type="button"
                       className="text-blue-600 hover:underline"
                       onClick={() => handleInputChange(field.key as keyof TestData, city)}
                     >
-                      {city}{index < popularDestinations[mode].cities.length - 1 ? ',' : ''}
+                      {city}{index < arr.length - 1 ? ',' : ''}
                     </button>
                   ))}
                 </div>
