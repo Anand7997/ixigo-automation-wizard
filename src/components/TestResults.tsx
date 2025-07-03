@@ -37,23 +37,28 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
     totalSteps: 12,
     passedSteps: 10,
     failedSteps: 2,
+    testSteps: [
+      { stepNo: 1, description: 'Open Browser and Navigate to Ixigo', elementName: 'Browser', actionType: 'OPEN_BROWSER', xpath: 'N/A', values: `https://www.ixigo.com/${mode}s`, expectedResult: `Browser should open and navigate to Ixigo ${mode}s page`, status: 'Pass' },
+      { stepNo: 2, description: 'Enter departure city', elementName: 'From', actionType: 'CLICK_AND_SELECT', xpath: "//*[contains(text(), 'From')]", values: testData.source || 'New Delhi', expectedResult: 'From station should be entered', status: 'Pass' },
+      { stepNo: 3, description: 'Enter destination city', elementName: 'To', actionType: 'CLICK_AND_SELECT', xpath: "//label[contains(text(),'To')]/following::input[1]", values: testData.destination || 'Hyderabad', expectedResult: 'To station should be entered', status: 'Pass' },
+      { stepNo: 4, description: 'Select departure date', elementName: 'Departure', actionType: 'CLICK_AND_SELECT_DATE', xpath: "//*[contains(@data-testid, 'departure')]", values: testData.date || 'Thu, 03 Jul', expectedResult: 'Date picker should open and date should be selected', status: 'Pass' },
+      { stepNo: 5, description: 'Select passengers/guests', elementName: 'PassengerCount', actionType: 'SELECT_COUNT', xpath: "//p[contains(text(), 'Adults')]", values: testData.passengers?.toString() || '2', expectedResult: 'Passenger count should be set', status: 'Pass' },
+      { stepNo: 6, description: 'Click Search button', elementName: 'SearchButton', actionType: 'CLICK', xpath: "//button[contains(text(), 'Search')]", values: 'N/A', expectedResult: 'Search should be initiated', status: 'Failed' }
+    ],
     xpathUsed: [
-      { element: 'source_input', xpath: "//input[@id='source']", status: 'success' },
-      { element: 'destination_input', xpath: "//input[@id='destination']", status: 'success' },
-      { element: 'date_picker', xpath: "//div[@class='date-picker']", status: 'success' },
-      { element: 'search_button', xpath: "//button[contains(text(),'Search')]", status: 'success' },
-      { element: 'results_container', xpath: "//div[@class='search-results']", status: 'success' },
-      { element: 'filter_price', xpath: "//div[@id='price-filter']", status: 'failed' },
-      { element: 'book_button', xpath: "//button[contains(@class,'book-now')]", status: 'success' },
-      { element: 'passenger_form', xpath: "//form[@id='passenger-details']", status: 'success' },
-      { element: 'payment_section', xpath: "//div[@class='payment-options']", status: 'failed' },
-      { element: 'confirmation_page', xpath: "//div[contains(@class,'booking-confirmation')]", status: 'success' }
+      { element: 'Browser Navigation', xpath: 'N/A', status: 'success', actionType: 'OPEN_BROWSER' },
+      { element: 'From Input', xpath: "//*[contains(text(), 'From')]", status: 'success', actionType: 'CLICK_AND_SELECT' },
+      { element: 'To Input', xpath: "//label[contains(text(),'To')]/following::input[1]", status: 'success', actionType: 'CLICK_AND_SELECT' },
+      { element: 'Date Picker', xpath: "//*[contains(@data-testid, 'departure')]", status: 'success', actionType: 'CLICK_AND_SELECT_DATE' },
+      { element: 'Passenger Section', xpath: "//p[contains(text(), 'Travellers & Class')]", status: 'success', actionType: 'CLICK' },
+      { element: 'Adult Count', xpath: "//p[contains(text(), 'Adults')]", status: 'success', actionType: 'SELECT_COUNT' },
+      { element: 'Search Button', xpath: "//button[contains(text(), 'Search')]", status: 'failed', actionType: 'CLICK' }
     ],
     screenshots: [
-      { step: 'Search Page', status: 'captured' },
-      { step: 'Results Page', status: 'captured' },
-      { step: 'Booking Form', status: 'captured' },
-      { step: 'Payment Page', status: 'error' }
+      { step: 'Home Page', status: 'captured' },
+      { step: 'Search Form', status: 'captured' },
+      { step: 'Date Selection', status: 'captured' },
+      { step: 'Search Results', status: 'error' }
     ]
   };
 
@@ -62,24 +67,27 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
     // Simulate export process
     setTimeout(() => {
       setIsExporting(false);
-      // In real implementation, trigger download of test report
-      console.log('Exporting results to database and generating report...');
+      console.log('Exporting detailed test results to SSMS database...');
     }, 2000);
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return 'text-green-600 bg-green-100';
-      case 'failed': return 'text-red-600 bg-red-100';
+    switch (status.toLowerCase()) {
+      case 'success': 
+      case 'pass': return 'text-green-600 bg-green-100';
+      case 'failed': 
+      case 'fail': return 'text-red-600 bg-red-100';
       case 'error': return 'text-orange-600 bg-orange-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success': return CheckCircle;
+    switch (status.toLowerCase()) {
+      case 'success':
+      case 'pass': return CheckCircle;
       case 'failed': 
+      case 'fail':
       case 'error': return XCircle;
       default: return Clock;
     }
@@ -128,13 +136,71 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
       </Card>
 
       {/* Detailed Results Tabs */}
-      <Tabs defaultValue="xpath" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="steps" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="steps">Test Steps</TabsTrigger>
           <TabsTrigger value="xpath">XPath Results</TabsTrigger>
           <TabsTrigger value="screenshots">Screenshots</TabsTrigger>
           <TabsTrigger value="data">Test Data</TabsTrigger>
           <TabsTrigger value="logs">Execution Logs</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="steps" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Database className="w-5 h-5 mr-2" />
+                Detailed Test Steps Execution
+              </CardTitle>
+              <CardDescription>
+                Step-by-step execution results matching your Excel test cases
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {mockResults.testSteps.map((step, index) => {
+                  const StatusIcon = getStatusIcon(step.status);
+                  return (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center space-x-3">
+                          <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                            Step {step.stepNo}
+                          </div>
+                          <StatusIcon className={`w-5 h-5 ${step.status.toLowerCase() === 'pass' ? 'text-green-600' : 'text-red-600'}`} />
+                        </div>
+                        <Badge className={getStatusColor(step.status)}>
+                          {step.status}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="font-medium">Description:</span> {step.description}
+                        </div>
+                        <div>
+                          <span className="font-medium">Element:</span> {step.elementName}
+                        </div>
+                        <div>
+                          <span className="font-medium">Action:</span> {step.actionType}
+                        </div>
+                        <div>
+                          <span className="font-medium">Value:</span> {step.values}
+                        </div>
+                        <div className="md:col-span-2">
+                          <span className="font-medium">XPath:</span> 
+                          <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs">{step.xpath}</code>
+                        </div>
+                        <div className="md:col-span-2">
+                          <span className="font-medium">Expected Result:</span> {step.expectedResult}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="xpath" className="space-y-4">
           <Card>
@@ -156,8 +222,11 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
                       <div className="flex items-center space-x-3">
                         <StatusIcon className={`w-5 h-5 ${xpath.status === 'success' ? 'text-green-600' : 'text-red-600'}`} />
                         <div>
-                          <div className="font-medium">{xpath.element.replace('_', ' ').toUpperCase()}</div>
+                          <div className="font-medium">{xpath.element}</div>
                           <div className="text-sm text-gray-600 font-mono">{xpath.xpath}</div>
+                          <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded mt-1 inline-block">
+                            {xpath.actionType}
+                          </div>
                         </div>
                       </div>
                       <Badge className={getStatusColor(xpath.status)}>
@@ -187,7 +256,7 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
                       <span className="text-gray-500">Screenshot Preview</span>
                     </div>
                     <div className="font-medium">{screenshot.step}</div>
-                    <Badge className={getStatusColor(screenshot.status)} size="sm">
+                    <Badge className={getStatusColor(screenshot.status)}>
                       {screenshot.status}
                     </Badge>
                   </div>
@@ -231,15 +300,15 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
                 <div>[{new Date().toISOString()}] Starting test execution for {mode} booking...</div>
                 <div>[{new Date().toISOString()}] Connecting to SSMS database...</div>
                 <div>[{new Date().toISOString()}] Fetching XPath elements for {mode} workflow...</div>
-                <div>[{new Date().toISOString()}] Found 10 XPath elements in database</div>
+                <div>[{new Date().toISOString()}] Found {mockResults.xpathUsed.length} XPath elements in database</div>
                 <div>[{new Date().toISOString()}] Launching Chrome browser...</div>
                 <div>[{new Date().toISOString()}] Navigating to ixigo.com...</div>
-                <div>[{new Date().toISOString()}] Executing step 1: Fill source field</div>
-                <div>[{new Date().toISOString()}] ✓ Element found and filled successfully</div>
-                <div>[{new Date().toISOString()}] Executing step 2: Fill destination field</div>
-                <div>[{new Date().toISOString()}] ✓ Element found and filled successfully</div>
-                <div>[{new Date().toISOString()}] ✗ Step 6 failed: Price filter element not found</div>
-                <div>[{new Date().toISOString()}] ✗ Step 9 failed: Payment section timeout</div>
+                {mockResults.testSteps.map((step, index) => (
+                  <div key={index}>
+                    <div>[{new Date().toISOString()}] Executing step {step.stepNo}: {step.description}</div>
+                    <div>[{new Date().toISOString()}] {step.status === 'Pass' ? '✓' : '✗'} {step.expectedResult}</div>
+                  </div>
+                ))}
                 <div>[{new Date().toISOString()}] Test execution completed</div>
                 <div>[{new Date().toISOString()}] Writing results to SSMS database...</div>
                 <div>[{new Date().toISOString()}] ✓ Results saved successfully</div>
@@ -268,7 +337,7 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
           ) : (
             <>
               <Download className="w-4 h-4 mr-2" />
-              Export to Database
+              Export to SSMS Database
             </>
           )}
         </Button>
@@ -285,7 +354,7 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
                   {mockResults.failedSteps} steps failed during execution
                 </div>
                 <div className="text-sm text-orange-700">
-                  Review the XPath Results tab for details. Consider updating XPath elements in the database.
+                  Review the Test Steps and XPath Results tabs for details. Consider updating XPath elements in the database.
                 </div>
               </div>
             </div>
