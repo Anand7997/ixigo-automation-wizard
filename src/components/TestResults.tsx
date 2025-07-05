@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,45 +20,22 @@ interface TestData {
 interface TestResultsProps {
   mode: BookingMode;
   testData: TestData;
+  testResults: any; // Results from Flask API
   onNewTest: () => void;
 }
 
-const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) => {
+const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, onNewTest }) => {
   const [isExporting, setIsExporting] = useState(false);
 
-  // Mock test results - in real implementation, this would come from your Python backend
-  const mockResults = {
-    testId: 'TEST_' + Date.now(),
-    status: 'completed',
-    startTime: new Date().toISOString(),
-    endTime: new Date(Date.now() + 45000).toISOString(),
-    duration: '45 seconds',
-    totalSteps: 12,
-    passedSteps: 10,
-    failedSteps: 2,
-    testSteps: [
-      { stepNo: 1, description: 'Open Browser and Navigate to Ixigo', elementName: 'Browser', actionType: 'OPEN_BROWSER', xpath: 'N/A', values: `https://www.ixigo.com/${mode}s`, expectedResult: `Browser should open and navigate to Ixigo ${mode}s page`, status: 'Pass' },
-      { stepNo: 2, description: 'Enter departure city', elementName: 'From', actionType: 'CLICK_AND_SELECT', xpath: "//*[contains(text(), 'From')]", values: testData.source || 'New Delhi', expectedResult: 'From station should be entered', status: 'Pass' },
-      { stepNo: 3, description: 'Enter destination city', elementName: 'To', actionType: 'CLICK_AND_SELECT', xpath: "//label[contains(text(),'To')]/following::input[1]", values: testData.destination || 'Hyderabad', expectedResult: 'To station should be entered', status: 'Pass' },
-      { stepNo: 4, description: 'Select departure date', elementName: 'Departure', actionType: 'CLICK_AND_SELECT_DATE', xpath: "//*[contains(@data-testid, 'departure')]", values: testData.date || 'Thu, 03 Jul', expectedResult: 'Date picker should open and date should be selected', status: 'Pass' },
-      { stepNo: 5, description: 'Select passengers/guests', elementName: 'PassengerCount', actionType: 'SELECT_COUNT', xpath: "//p[contains(text(), 'Adults')]", values: testData.passengers?.toString() || '2', expectedResult: 'Passenger count should be set', status: 'Pass' },
-      { stepNo: 6, description: 'Click Search button', elementName: 'SearchButton', actionType: 'CLICK', xpath: "//button[contains(text(), 'Search')]", values: 'N/A', expectedResult: 'Search should be initiated', status: 'Failed' }
-    ],
-    xpathUsed: [
-      { element: 'Browser Navigation', xpath: 'N/A', status: 'success', actionType: 'OPEN_BROWSER' },
-      { element: 'From Input', xpath: "//*[contains(text(), 'From')]", status: 'success', actionType: 'CLICK_AND_SELECT' },
-      { element: 'To Input', xpath: "//label[contains(text(),'To')]/following::input[1]", status: 'success', actionType: 'CLICK_AND_SELECT' },
-      { element: 'Date Picker', xpath: "//*[contains(@data-testid, 'departure')]", status: 'success', actionType: 'CLICK_AND_SELECT_DATE' },
-      { element: 'Passenger Section', xpath: "//p[contains(text(), 'Travellers & Class')]", status: 'success', actionType: 'CLICK' },
-      { element: 'Adult Count', xpath: "//p[contains(text(), 'Adults')]", status: 'success', actionType: 'SELECT_COUNT' },
-      { element: 'Search Button', xpath: "//button[contains(text(), 'Search')]", status: 'failed', actionType: 'CLICK' }
-    ],
-    screenshots: [
-      { step: 'Home Page', status: 'captured' },
-      { step: 'Search Form', status: 'captured' },
-      { step: 'Date Selection', status: 'captured' },
-      { step: 'Search Results', status: 'error' }
-    ]
+  // Use real results from Flask API instead of mock data
+  const results = testResults || {
+    testId: 'TEST_ERROR',
+    status: 'error',
+    totalSteps: 0,
+    passedSteps: 0,
+    failedSteps: 1,
+    stepResults: [],
+    executionTime: '0 seconds'
   };
 
   const handleExportResults = async () => {
@@ -101,34 +77,40 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-2xl flex items-center">
-                <CheckCircle className="w-6 h-6 text-green-600 mr-3" />
-                Test Execution Complete
+                {results.status === 'passed' ? (
+                  <CheckCircle className="w-6 h-6 text-green-600 mr-3" />
+                ) : (
+                  <XCircle className="w-6 h-6 text-red-600 mr-3" />
+                )}
+                Test Execution {results.status === 'passed' ? 'Passed' : 'Failed'}
               </CardTitle>
               <CardDescription className="text-lg mt-2">
-                Test ID: {mockResults.testId} • Mode: {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                Test ID: {results.test_id} • Mode: {mode.charAt(0).toUpperCase() + mode.slice(1)}
               </CardDescription>
             </div>
-            <Badge variant="outline" className="text-green-600 border-green-600">
-              {mockResults.status.toUpperCase()}
+            <Badge variant="outline" className={
+              results.status === 'passed' ? 'text-green-600 border-green-600' : 'text-red-600 border-red-600'
+            }>
+              {results.status.toUpperCase()}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{mockResults.totalSteps}</div>
+              <div className="text-2xl font-bold text-blue-600">{results.total_steps || 0}</div>
               <div className="text-sm text-gray-600">Total Steps</div>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{mockResults.passedSteps}</div>
+              <div className="text-2xl font-bold text-green-600">{results.passed_steps || 0}</div>
               <div className="text-sm text-gray-600">Passed</div>
             </div>
             <div className="text-center p-4 bg-red-50 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">{mockResults.failedSteps}</div>
+              <div className="text-2xl font-bold text-red-600">{results.failed_steps || 0}</div>
               <div className="text-sm text-gray-600">Failed</div>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-gray-600">{mockResults.duration}</div>
+              <div className="text-2xl font-bold text-gray-600">{results.execution_time || 'N/A'}</div>
               <div className="text-sm text-gray-600">Duration</div>
             </div>
           </div>
@@ -137,12 +119,11 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
 
       {/* Detailed Results Tabs */}
       <Tabs defaultValue="steps" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="steps">Test Steps</TabsTrigger>
-          <TabsTrigger value="xpath">XPath Results</TabsTrigger>
-          <TabsTrigger value="screenshots">Screenshots</TabsTrigger>
           <TabsTrigger value="data">Test Data</TabsTrigger>
           <TabsTrigger value="logs">Execution Logs</TabsTrigger>
+          <TabsTrigger value="error">Error Details</TabsTrigger>
         </TabsList>
 
         <TabsContent value="steps" className="space-y-4">
@@ -153,114 +134,58 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
                 Detailed Test Steps Execution
               </CardTitle>
               <CardDescription>
-                Step-by-step execution results matching your Excel test cases
+                Step-by-step execution results from your Flask API
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {mockResults.testSteps.map((step, index) => {
-                  const StatusIcon = getStatusIcon(step.status);
-                  return (
-                    <div key={index} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
-                            Step {step.stepNo}
+                {results.step_results && results.step_results.length > 0 ? (
+                  results.step_results.map((step: any, index: number) => {
+                    const StatusIcon = getStatusIcon(step.status);
+                    return (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                              Step {step.step_number}
+                            </div>
+                            <StatusIcon className={`w-5 h-5 ${step.status === 'passed' ? 'text-green-600' : 'text-red-600'}`} />
                           </div>
-                          <StatusIcon className={`w-5 h-5 ${step.status.toLowerCase() === 'pass' ? 'text-green-600' : 'text-red-600'}`} />
+                          <Badge className={getStatusColor(step.status)}>
+                            {step.status}
+                          </Badge>
                         </div>
-                        <Badge className={getStatusColor(step.status)}>
-                          {step.status}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <span className="font-medium">Description:</span> {step.description}
-                        </div>
-                        <div>
-                          <span className="font-medium">Element:</span> {step.elementName}
-                        </div>
-                        <div>
-                          <span className="font-medium">Action:</span> {step.actionType}
-                        </div>
-                        <div>
-                          <span className="font-medium">Value:</span> {step.values}
-                        </div>
-                        <div className="md:col-span-2">
-                          <span className="font-medium">XPath:</span> 
-                          <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs">{step.xpath}</code>
-                        </div>
-                        <div className="md:col-span-2">
-                          <span className="font-medium">Expected Result:</span> {step.expectedResult}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="xpath" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Database className="w-5 h-5 mr-2" />
-                XPath Execution Results
-              </CardTitle>
-              <CardDescription>
-                XPath elements fetched from database and their execution status
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {mockResults.xpathUsed.map((xpath, index) => {
-                  const StatusIcon = getStatusIcon(xpath.status);
-                  return (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <StatusIcon className={`w-5 h-5 ${xpath.status === 'success' ? 'text-green-600' : 'text-red-600'}`} />
-                        <div>
-                          <div className="font-medium">{xpath.element}</div>
-                          <div className="text-sm text-gray-600 font-mono">{xpath.xpath}</div>
-                          <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded mt-1 inline-block">
-                            {xpath.actionType}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="font-medium">Element:</span> {step.element_name}
                           </div>
+                          <div>
+                            <span className="font-medium">Action:</span> {step.action_type}
+                          </div>
+                          <div>
+                            <span className="font-medium">Value:</span> {step.test_value}
+                          </div>
+                          <div>
+                            <span className="font-medium">Status:</span> {step.status}
+                          </div>
+                          <div className="md:col-span-2">
+                            <span className="font-medium">XPath:</span> 
+                            <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs">{step.xpath}</code>
+                          </div>
+                          {step.error && (
+                            <div className="md:col-span-2 text-red-600">
+                              <span className="font-medium">Error:</span> {step.error}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <Badge className={getStatusColor(xpath.status)}>
-                        {xpath.status}
-                      </Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="screenshots" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Test Screenshots</CardTitle>
-              <CardDescription>
-                Screenshots captured during test execution
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {mockResults.screenshots.map((screenshot, index) => (
-                  <div key={index} className="border rounded-lg p-4 text-center">
-                    <div className="w-full h-32 bg-gray-100 rounded mb-3 flex items-center justify-center">
-                      <span className="text-gray-500">Screenshot Preview</span>
-                    </div>
-                    <div className="font-medium">{screenshot.step}</div>
-                    <Badge className={getStatusColor(screenshot.status)}>
-                      {screenshot.status}
-                    </Badge>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No step results available
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -315,6 +240,24 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, onNewTest }) 
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="error" className="space-y-4">
+          {results.error && (
+            <Card className="border-red-200 bg-red-50">
+              <CardHeader>
+                <CardTitle className="text-red-800">Error Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-red-700">
+                  <p className="font-medium">Error Message:</p>
+                  <code className="block mt-2 p-3 bg-red-100 rounded text-sm">
+                    {results.error}
+                  </code>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 

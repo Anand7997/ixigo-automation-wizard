@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +24,7 @@ const Index = () => {
   const [currentStep, setCurrentStep] = useState<'select' | 'configure' | 'execute' | 'results'>('select');
   const [testData, setTestData] = useState<TestData>({});
   const [isExecuting, setIsExecuting] = useState(false);
+  const [testResults, setTestResults] = useState(null);
 
   const getModeIcon = (mode: BookingMode) => {
     const icons = {
@@ -48,14 +48,41 @@ const Index = () => {
 
   const handleExecuteTest = async () => {
     setIsExecuting(true);
-    // Here you would call your Python backend API
-    console.log('Executing test for:', selectedMode, 'with data:', testData);
     
-    // Simulate test execution
-    setTimeout(() => {
+    try {
+      console.log('🚀 Calling Flask API with:', { 
+        mode: selectedMode, 
+        testData: testData 
+      });
+      
+      const response = await fetch('http://localhost:5000/api/execute-test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mode: selectedMode,
+          testData: testData
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Test execution successful:', result.result);
+        setTestResults(result.result);
+        setCurrentStep('results');
+      } else {
+        console.error('❌ Test execution failed:', result.error);
+        alert(`Test execution failed: ${result.error}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ API call failed:', error);
+      alert(`Failed to connect to test automation server: ${error.message}`);
+    } finally {
       setIsExecuting(false);
-      setCurrentStep('results');
-    }, 3000);
+    }
   };
 
   const resetDashboard = () => {
@@ -195,11 +222,12 @@ const Index = () => {
           </div>
         )}
 
-        {currentStep === 'results' && (
+        {currentStep === 'results' && testResults && (
           <div>
             <TestResults 
               mode={selectedMode!}
               testData={testData}
+              testResults={testResults}
               onNewTest={resetDashboard}
             />
           </div>
