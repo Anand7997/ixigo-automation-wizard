@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -225,13 +226,13 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
                 <div>[{new Date().toISOString()}] Starting test execution for {mode} booking...</div>
                 <div>[{new Date().toISOString()}] Connecting to SSMS database...</div>
                 <div>[{new Date().toISOString()}] Fetching XPath elements for {mode} workflow...</div>
-                <div>[{new Date().toISOString()}] Found {mockResults.xpathUsed.length} XPath elements in database</div>
+                <div>[{new Date().toISOString()}] Found {results.step_results?.length || 0} XPath elements in database</div>
                 <div>[{new Date().toISOString()}] Launching Chrome browser...</div>
                 <div>[{new Date().toISOString()}] Navigating to ixigo.com...</div>
-                {mockResults.testSteps.map((step, index) => (
+                {results.step_results && results.step_results.map((step: any, index: number) => (
                   <div key={index}>
-                    <div>[{new Date().toISOString()}] Executing step {step.stepNo}: {step.description}</div>
-                    <div>[{new Date().toISOString()}] {step.status === 'Pass' ? '✓' : '✗'} {step.expectedResult}</div>
+                    <div>[{new Date().toISOString()}] Executing step {step.step_number}: {step.element_name}</div>
+                    <div>[{new Date().toISOString()}] {step.status === 'passed' ? '✓' : '✗'} {step.action_type}</div>
                   </div>
                 ))}
                 <div>[{new Date().toISOString()}] Test execution completed</div>
@@ -287,14 +288,14 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
       </div>
 
       {/* Failed Steps Alert */}
-      {mockResults.failedSteps > 0 && (
+      {results.failed_steps > 0 && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-3">
               <AlertTriangle className="w-5 h-5 text-orange-600" />
               <div>
                 <div className="font-semibold text-orange-800">
-                  {mockResults.failedSteps} steps failed during execution
+                  {results.failed_steps} steps failed during execution
                 </div>
                 <div className="text-sm text-orange-700">
                   Review the Test Steps and XPath Results tabs for details. Consider updating XPath elements in the database.
