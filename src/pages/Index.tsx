@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,10 +73,18 @@ const Index = () => {
       
       // Check if Flask server is running first
       try {
+        const healthController = new AbortController();
+        const healthTimeoutId = setTimeout(() => {
+          healthController.abort();
+          addLog('⏰ Health check timeout after 5 seconds');
+        }, 5000);
+        
         const healthCheck = await fetch('http://localhost:5000/', {
           method: 'GET',
-          timeout: 5000
+          signal: healthController.signal
         });
+        
+        clearTimeout(healthTimeoutId);
         
         if (!healthCheck.ok) {
           throw new Error('Flask server not responding properly');
@@ -99,8 +108,8 @@ const Index = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
-        addLog('⏰ Request timeout after 120 seconds');
-      }, 120000); // 2 minute timeout for test execution
+        addLog('⏰ Request timeout after 60 seconds');
+      }, 60000); // 60 second timeout for test execution
       
       const response = await fetch('http://localhost:5000/api/execute-test', {
         method: 'POST',
@@ -140,7 +149,7 @@ const Index = () => {
       addLog(`❌ Error: ${error.message}`);
       
       if (error.name === 'AbortError') {
-        setApiError('Request timeout - Test execution took too long (>2 minutes). Check if Chrome is launching properly.');
+        setApiError('Request timeout - Test execution took too long (>60 seconds). Check if Chrome is launching properly.');
       } else if (error.message.includes('fetch') || error.message.includes('connect')) {
         setApiError('Cannot connect to Flask server. Make sure Python Flask app is running: python app.py');
       } else {
