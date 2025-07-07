@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import ModeSelector from '@/components/ModeSelector';
 import TestDataForm from '@/components/TestDataForm';
 import TestResults from '@/components/TestResults';
-import { Plane, Bus, Train, Hotel, Play, Database, FileText } from 'lucide-react';
+import { Plane, Bus, Train, Hotel, Play, Database, FileText, AlertCircle } from 'lucide-react';
 
 type BookingMode = 'flight' | 'bus' | 'train' | 'hotel';
 
@@ -32,6 +32,7 @@ const Index = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [testResults, setTestResults] = useState(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [executionLogs, setExecutionLogs] = useState<string[]>([]);
 
   const getModeIcon = (mode: BookingMode) => {
     const icons = {
@@ -56,32 +57,62 @@ const Index = () => {
   const handleExecuteTest = async () => {
     setIsExecuting(true);
     setApiError(null);
+    setExecutionLogs([]);
     
+    // Add initial log
+    const addLog = (message: string) => {
+      console.log(message);
+      setExecutionLogs(prev => [...prev, `[${new Date().toISOString()}] ${message}`]);
+    };
+
     try {
-      console.log('🚀 Calling Flask API with:', { 
-        mode: selectedMode, 
-        testData: testData 
-      });
+      addLog('🚀 Starting test execution...');
+      addLog(`📋 Mode: ${selectedMode}, Test Case: ${testData.testCaseId}`);
+      addLog('🔗 Connecting to Flask API...');
       
-      // Add timeout to the fetch request
+      // Check if Flask server is running first
+      try {
+        const healthCheck = await fetch('http://localhost:5000/', {
+          method: 'GET',
+          timeout: 5000
+        });
+        
+        if (!healthCheck.ok) {
+          throw new Error('Flask server not responding properly');
+        }
+        addLog('✅ Flask server connection successful');
+      } catch (healthError) {
+        throw new Error('Cannot connect to Flask server. Make sure Python Flask app is running on http://localhost:5000');
+      }
+
+      const requestPayload = {
+        mode: selectedMode,
+        testData: {
+          ...testData,
+          mode: selectedMode // Ensure mode is included
+        }
+      };
+
+      addLog('📤 Sending test execution request...');
+      console.log('📤 Request payload:', requestPayload);
+      
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        addLog('⏰ Request timeout after 120 seconds');
+      }, 120000); // 2 minute timeout for test execution
       
       const response = await fetch('http://localhost:5000/api/execute-test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          mode: selectedMode,
-          testData: testData
-        }),
+        body: JSON.stringify(requestPayload),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
-
-      console.log('📡 API Response Status:', response.status);
+      addLog(`📡 API Response Status: ${response.status}`);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -91,24 +122,29 @@ const Index = () => {
 
       const result = await response.json();
       console.log('📊 Full API Response:', result);
+      addLog('📊 Received API response');
       
       if (result.success) {
-        console.log('✅ Test execution successful:', result.result);
+        addLog('✅ Test execution completed successfully');
+        addLog(`📈 Results: ${result.result.passed_steps}/${result.result.total_steps} steps passed`);
         setTestResults(result.result);
         setCurrentStep('results');
       } else {
+        addLog('❌ Test execution failed');
         console.error('❌ Test execution failed:', result.error);
-        setApiError(result.error || 'Unknown error occurred');
+        setApiError(result.error || 'Unknown error occurred during test execution');
       }
       
     } catch (error) {
       console.error('❌ API call failed:', error);
+      addLog(`❌ Error: ${error.message}`);
+      
       if (error.name === 'AbortError') {
-        setApiError('Request timeout - Flask server may not be running or test execution took too long');
-      } else if (error.message.includes('fetch')) {
-        setApiError('Cannot connect to Flask server. Make sure Python Flask app is running on http://localhost:5000');
+        setApiError('Request timeout - Test execution took too long (>2 minutes). Check if Chrome is launching properly.');
+      } else if (error.message.includes('fetch') || error.message.includes('connect')) {
+        setApiError('Cannot connect to Flask server. Make sure Python Flask app is running: python app.py');
       } else {
-        setApiError(`API Error: ${error.message}`);
+        setApiError(`Execution Error: ${error.message}`);
       }
     } finally {
       setIsExecuting(false);
@@ -196,12 +232,12 @@ const Index = () => {
         )}
 
         {currentStep === 'execute' && (
-          <div>
+          <div className="space-y-6">
             <Card className="text-center">
               <CardHeader>
                 <CardTitle className="text-2xl">Ready to Execute Test</CardTitle>
                 <CardDescription>
-                  The system will fetch XPath from database and execute the test
+                  The system will fetch XPath from database and execute the test in Chrome browser
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -210,29 +246,110 @@ const Index = () => {
                     <FileText className="w-4 h-4 mr-2" />
                     Test Summary
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="font-medium">Mode:</span>
                       <Badge variant="outline" className="ml-2 capitalize">{selectedMode}</Badge>
                     </div>
-                    {Object.entries(testData).map(([key, value]) => (
-                      <div key={key}>
-                        <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                        <span className="ml-2">{value}</span>
+                    <div>
+                      <span className="font-medium">Test Case ID:</span>
+                      <span className="ml-2">{testData.testCaseId}</span>
+                    </div>
+                    {testData.source && (
+                      <div>
+                        <span className="font-medium">Source:</span>
+                        <span className="ml-2">{testData.source}</span>
                       </div>
-                    ))}
+                    )}
+                    {testData.destination && (
+                      <div>
+                        <span className="font-medium">Destination:</span>
+                        <span className="ml-2">{testData.destination}</span>
+                      </div>
+                    )}
+                    {testData.date && (
+                      <div>
+                        <span className="font-medium">Date:</span>
+                        <span className="ml-2">{testData.date}</span>
+                      </div>
+                    )}
+                    {testData.passengers && (
+                      <div>
+                        <span className="font-medium">Adults/Passengers:</span>
+                        <span className="ml-2">{testData.passengers}</span>
+                      </div>
+                    )}
+                    {testData.children !== undefined && testData.children > 0 && (
+                      <div>
+                        <span className="font-medium">Children:</span>
+                        <span className="ml-2">{testData.children}</span>
+                      </div>
+                    )}
+                    {testData.infants !== undefined && testData.infants > 0 && (
+                      <div>
+                        <span className="font-medium">Infants:</span>
+                        <span className="ml-2">{testData.infants}</span>
+                      </div>
+                    )}
+                    {testData.travelClass && (
+                      <div>
+                        <span className="font-medium">Travel Class:</span>
+                        <span className="ml-2">{testData.travelClass}</span>
+                      </div>
+                    )}
+                    {testData.checkIn && (
+                      <div>
+                        <span className="font-medium">Check In:</span>
+                        <span className="ml-2">{testData.checkIn}</span>
+                      </div>
+                    )}
+                    {testData.checkOut && (
+                      <div>
+                        <span className="font-medium">Check Out:</span>
+                        <span className="ml-2">{testData.checkOut}</span>
+                      </div>
+                    )}
+                    {testData.rooms && (
+                      <div>
+                        <span className="font-medium">Rooms:</span>
+                        <span className="ml-2">{testData.rooms}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Real-time Execution Logs */}
+                {isExecuting && executionLogs.length > 0 && (
+                  <div className="bg-black text-green-400 p-4 rounded-lg font-mono text-sm max-h-48 overflow-y-auto">
+                    <div className="mb-2 text-white font-semibold">🔄 Live Execution Logs:</div>
+                    {executionLogs.map((log, index) => (
+                      <div key={index} className="mb-1">{log}</div>
+                    ))}
+                    {isExecuting && (
+                      <div className="flex items-center mt-2">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-green-400 mr-2" />
+                        <span>Executing test...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* API Error Display */}
                 {apiError && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center">
-                      <div className="text-red-600 font-semibold">Connection Error:</div>
+                    <div className="flex items-center mb-2">
+                      <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+                      <div className="text-red-600 font-semibold">Execution Error:</div>
                     </div>
-                    <div className="text-red-700 text-sm mt-2">{apiError}</div>
-                    <div className="text-red-600 text-xs mt-2">
-                      Make sure your Flask server is running: <code>python app.py</code>
+                    <div className="text-red-700 text-sm mb-3">{apiError}</div>
+                    <div className="bg-red-100 p-3 rounded text-xs text-red-600">
+                      <div className="font-semibold mb-1">Troubleshooting Steps:</div>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>Make sure Flask server is running: <code className="bg-red-200 px-1 rounded">python app.py</code></li>
+                        <li>Check if SSMS database connection is working</li>
+                        <li>Verify Chrome browser is installed and accessible</li>
+                        <li>Check console logs for detailed error information</li>
+                      </ul>
                     </div>
                   </div>
                 )}
@@ -241,6 +358,7 @@ const Index = () => {
                   <Button 
                     variant="outline" 
                     onClick={() => setCurrentStep('configure')}
+                    disabled={isExecuting}
                   >
                     Back to Configure
                   </Button>

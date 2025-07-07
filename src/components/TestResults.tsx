@@ -27,16 +27,15 @@ interface TestData {
 interface TestResultsProps {
   mode: BookingMode;
   testData: TestData;
-  testResults: any; // Results from Flask API
+  testResults: any;
   onNewTest: () => void;
 }
 
 const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, onNewTest }) => {
   const [isExporting, setIsExporting] = useState(false);
 
-  // Use real results from Flask API instead of mock data
   const results = testResults || {
-    testId: 'TEST_ERROR',
+    test_id: 'TEST_ERROR',
     status: 'error',
     total_steps: 0,
     passed_steps: 0,
@@ -47,7 +46,6 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
 
   const handleExportResults = async () => {
     setIsExporting(true);
-    // Simulate export process
     setTimeout(() => {
       setIsExporting(false);
       console.log('Exporting detailed test results to SSMS database...');
@@ -78,23 +76,58 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
     }
   };
 
-  // Format test data for display with proper labels
+  // Enhanced test data formatting to include all fields
   const getFormattedTestData = () => {
     const formatted = [];
     
-    if (testData.testCaseId) formatted.push({ label: 'Test Case ID', value: testData.testCaseId });
-    if (testData.source) formatted.push({ label: 'Source', value: testData.source });
-    if (testData.destination) formatted.push({ label: 'Destination', value: testData.destination });
-    if (testData.date) formatted.push({ label: 'Date', value: testData.date });
-    if (testData.passengers) formatted.push({ label: 'Adults/Passengers', value: testData.passengers });
-    if (testData.children) formatted.push({ label: 'Children', value: testData.children });
-    if (testData.infants) formatted.push({ label: 'Infants', value: testData.infants });
-    if (testData.travelClass) formatted.push({ label: 'Travel Class', value: testData.travelClass });
-    if (testData.checkIn) formatted.push({ label: 'Check In', value: testData.checkIn });
-    if (testData.checkOut) formatted.push({ label: 'Check Out', value: testData.checkOut });
-    if (testData.rooms) formatted.push({ label: 'Rooms', value: testData.rooms });
-    if (testData.browserType) formatted.push({ label: 'Browser', value: testData.browserType });
-    if (testData.testType) formatted.push({ label: 'Test Type', value: testData.testType });
+    if (testData.testCaseId) {
+      formatted.push({ label: 'Test Case ID', value: testData.testCaseId, important: true });
+    }
+    if (testData.source) {
+      formatted.push({ label: 'Source', value: testData.source, important: true });
+    }
+    if (testData.destination) {
+      formatted.push({ label: 'Destination', value: testData.destination, important: true });
+    }
+    if (testData.date) {
+      formatted.push({ label: 'Travel Date', value: testData.date, important: true });
+    }
+    if (testData.passengers) {
+      formatted.push({ label: 'Adults/Passengers', value: testData.passengers.toString(), important: true });
+    }
+    
+    // Always show children count (even if 0)
+    formatted.push({ 
+      label: 'Children', 
+      value: (testData.children || 0).toString(), 
+      important: false 
+    });
+    
+    // Always show infants count (even if 0) 
+    formatted.push({ 
+      label: 'Infants', 
+      value: (testData.infants || 0).toString(), 
+      important: false 
+    });
+    
+    if (testData.travelClass) {
+      formatted.push({ label: 'Travel Class', value: testData.travelClass, important: true });
+    }
+    if (testData.checkIn) {
+      formatted.push({ label: 'Check In Date', value: testData.checkIn, important: true });
+    }
+    if (testData.checkOut) {
+      formatted.push({ label: 'Check Out Date', value: testData.checkOut, important: true });
+    }
+    if (testData.rooms) {
+      formatted.push({ label: 'Rooms', value: testData.rooms.toString(), important: true });
+    }
+    if (testData.browserType) {
+      formatted.push({ label: 'Browser Type', value: testData.browserType, important: false });
+    }
+    if (testData.testType) {
+      formatted.push({ label: 'Test Type', value: testData.testType, important: false });
+    }
     
     return formatted;
   };
@@ -115,13 +148,13 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
                 Test Execution {results.status === 'passed' ? 'Passed' : 'Failed'}
               </CardTitle>
               <CardDescription className="text-lg mt-2">
-                Test ID: {results.test_id} • Mode: {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                Test ID: {results.test_id || results.testId} • Mode: {mode.charAt(0).toUpperCase() + mode.slice(1)}
               </CardDescription>
             </div>
             <Badge variant="outline" className={
               results.status === 'passed' ? 'text-green-600 border-green-600' : 'text-red-600 border-red-600'
             }>
-              {results.status.toUpperCase()}
+              {results.status?.toUpperCase() || 'UNKNOWN'}
             </Badge>
           </div>
         </CardHeader>
@@ -164,7 +197,7 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
                 Detailed Test Steps Execution
               </CardTitle>
               <CardDescription>
-                Step-by-step execution results from your Flask API
+                Step-by-step execution results from your Flask API and Selenium automation
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -173,10 +206,10 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
                   results.step_results.map((step: any, index: number) => {
                     const StatusIcon = getStatusIcon(step.status);
                     return (
-                      <div key={index} className="border rounded-lg p-4">
+                      <div key={index} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center space-x-3">
-                            <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                            <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium min-w-[60px] text-center">
                               Step {step.step_number}
                             </div>
                             <StatusIcon className={`w-5 h-5 ${step.status === 'passed' ? 'text-green-600' : 'text-red-600'}`} />
@@ -187,24 +220,39 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                           <div>
-                            <span className="font-medium">Element:</span> {step.element_name}
+                            <span className="font-medium text-gray-700">Element:</span> 
+                            <span className="ml-1">{step.element_name}</span>
                           </div>
                           <div>
-                            <span className="font-medium">Action:</span> {step.action_type}
+                            <span className="font-medium text-gray-700">Action:</span> 
+                            <span className="ml-1">{step.action_type}</span>
                           </div>
                           <div>
-                            <span className="font-medium">Value:</span> {step.test_value}
+                            <span className="font-medium text-gray-700">Value Used:</span> 
+                            <span className="ml-1 text-blue-600">{step.test_value || 'N/A'}</span>
                           </div>
                           <div>
-                            <span className="font-medium">Status:</span> {step.status}
+                            <span className="font-medium text-gray-700">Result:</span> 
+                            <span className={`ml-1 font-medium ${step.status === 'passed' ? 'text-green-600' : 'text-red-600'}`}>
+                              {step.status}
+                            </span>
                           </div>
                           <div className="md:col-span-2">
-                            <span className="font-medium">XPath:</span> 
-                            <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs">{step.xpath}</code>
+                            <span className="font-medium text-gray-700">XPath:</span> 
+                            <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs break-all">
+                              {step.xpath}
+                            </code>
                           </div>
+                          {step.message && (
+                            <div className="md:col-span-2 text-gray-600">
+                              <span className="font-medium">Message:</span> 
+                              <span className="ml-1">{step.message}</span>
+                            </div>
+                          )}
                           {step.error && (
-                            <div className="md:col-span-2 text-red-600">
-                              <span className="font-medium">Error:</span> {step.error}
+                            <div className="md:col-span-2 text-red-600 bg-red-50 p-2 rounded">
+                              <span className="font-medium">Error:</span> 
+                              <span className="ml-1">{step.error}</span>
                             </div>
                           )}
                         </div>
@@ -213,7 +261,9 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
                   })
                 ) : (
                   <div className="text-center py-8 text-gray-500">
-                    No step results available
+                    <Database className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>No step results available</p>
+                    <p className="text-sm">Test may not have executed properly</p>
                   </div>
                 )}
               </div>
@@ -226,18 +276,34 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
             <CardHeader>
               <CardTitle>Test Data Used</CardTitle>
               <CardDescription>
-                Input data that was used for this test execution
+                Complete input data that was used for this test execution
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {getFormattedTestData().map((item) => (
-                  <div key={item.label} className="flex justify-between p-3 bg-gray-50 rounded">
-                    <span className="font-medium">{item.label}</span>
-                    <span className="text-gray-600">{item.value}</span>
+                  <div key={item.label} className={`flex justify-between items-center p-3 rounded transition-colors ${
+                    item.important ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
+                  }`}>
+                    <span className="font-medium text-gray-700">{item.label}:</span>
+                    <span className={`text-right ${item.important ? 'text-blue-700 font-medium' : 'text-gray-600'}`}>
+                      {item.value}
+                    </span>
                   </div>
                 ))}
               </div>
+              
+              {/* Summary for flight mode */}
+              {mode === 'flight' && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2">Flight Booking Summary</h4>
+                  <div className="text-sm text-blue-700">
+                    <span className="font-medium">Route:</span> {testData.source} → {testData.destination} | 
+                    <span className="font-medium ml-2">Passengers:</span> {testData.passengers || 1} Adults, {testData.children || 0} Children, {testData.infants || 0} Infants | 
+                    <span className="font-medium ml-2">Class:</span> {testData.travelClass || 'Economy'}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
