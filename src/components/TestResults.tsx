@@ -9,13 +9,19 @@ import { CheckCircle, XCircle, Clock, Download, RefreshCw, Database, AlertTriang
 type BookingMode = 'flight' | 'bus' | 'train' | 'hotel';
 
 interface TestData {
+  testCaseId?: string;
   source?: string;
   destination?: string;
   date?: string;
   passengers?: number;
+  children?: number;
+  infants?: number;
+  travelClass?: string;
   checkIn?: string;
   checkOut?: string;
   rooms?: number;
+  browserType?: string;
+  testType?: string;
 }
 
 interface TestResultsProps {
@@ -32,11 +38,11 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
   const results = testResults || {
     testId: 'TEST_ERROR',
     status: 'error',
-    totalSteps: 0,
-    passedSteps: 0,
-    failedSteps: 1,
-    stepResults: [],
-    executionTime: '0 seconds'
+    total_steps: 0,
+    passed_steps: 0,
+    failed_steps: 1,
+    step_results: [],
+    execution_time: '0 seconds'
   };
 
   const handleExportResults = async () => {
@@ -51,7 +57,8 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'success': 
-      case 'pass': return 'text-green-600 bg-green-100';
+      case 'pass': 
+      case 'passed': return 'text-green-600 bg-green-100';
       case 'failed': 
       case 'fail': return 'text-red-600 bg-red-100';
       case 'error': return 'text-orange-600 bg-orange-100';
@@ -62,12 +69,34 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {
       case 'success':
-      case 'pass': return CheckCircle;
+      case 'pass':
+      case 'passed': return CheckCircle;
       case 'failed': 
       case 'fail':
       case 'error': return XCircle;
       default: return Clock;
     }
+  };
+
+  // Format test data for display with proper labels
+  const getFormattedTestData = () => {
+    const formatted = [];
+    
+    if (testData.testCaseId) formatted.push({ label: 'Test Case ID', value: testData.testCaseId });
+    if (testData.source) formatted.push({ label: 'Source', value: testData.source });
+    if (testData.destination) formatted.push({ label: 'Destination', value: testData.destination });
+    if (testData.date) formatted.push({ label: 'Date', value: testData.date });
+    if (testData.passengers) formatted.push({ label: 'Adults/Passengers', value: testData.passengers });
+    if (testData.children) formatted.push({ label: 'Children', value: testData.children });
+    if (testData.infants) formatted.push({ label: 'Infants', value: testData.infants });
+    if (testData.travelClass) formatted.push({ label: 'Travel Class', value: testData.travelClass });
+    if (testData.checkIn) formatted.push({ label: 'Check In', value: testData.checkIn });
+    if (testData.checkOut) formatted.push({ label: 'Check Out', value: testData.checkOut });
+    if (testData.rooms) formatted.push({ label: 'Rooms', value: testData.rooms });
+    if (testData.browserType) formatted.push({ label: 'Browser', value: testData.browserType });
+    if (testData.testType) formatted.push({ label: 'Test Type', value: testData.testType });
+    
+    return formatted;
   };
 
   return (
@@ -202,10 +231,10 @@ const TestResults: React.FC<TestResultsProps> = ({ mode, testData, testResults, 
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(testData).map(([key, value]) => (
-                  <div key={key} className="flex justify-between p-3 bg-gray-50 rounded">
-                    <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
-                    <span className="text-gray-600">{value}</span>
+                {getFormattedTestData().map((item) => (
+                  <div key={item.label} className="flex justify-between p-3 bg-gray-50 rounded">
+                    <span className="font-medium">{item.label}</span>
+                    <span className="text-gray-600">{item.value}</span>
                   </div>
                 ))}
               </div>

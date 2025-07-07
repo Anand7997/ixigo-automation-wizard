@@ -10,13 +10,19 @@ import { Plane, Bus, Train, Hotel, Play, Database, FileText } from 'lucide-react
 type BookingMode = 'flight' | 'bus' | 'train' | 'hotel';
 
 interface TestData {
+  testCaseId?: string;
   source?: string;
   destination?: string;
   date?: string;
   passengers?: number;
+  children?: number;
+  infants?: number;
+  travelClass?: string;
   checkIn?: string;
   checkOut?: string;
   rooms?: number;
+  browserType?: string;
+  testType?: string;
 }
 
 const Index = () => {
@@ -25,6 +31,7 @@ const Index = () => {
   const [testData, setTestData] = useState<TestData>({});
   const [isExecuting, setIsExecuting] = useState(false);
   const [testResults, setTestResults] = useState(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const getModeIcon = (mode: BookingMode) => {
     const icons = {
@@ -48,12 +55,17 @@ const Index = () => {
 
   const handleExecuteTest = async () => {
     setIsExecuting(true);
+    setApiError(null);
     
     try {
       console.log('🚀 Calling Flask API with:', { 
         mode: selectedMode, 
         testData: testData 
       });
+      
+      // Add timeout to the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
       
       const response = await fetch('http://localhost:5000/api/execute-test', {
         method: 'POST',
@@ -63,10 +75,22 @@ const Index = () => {
         body: JSON.stringify({
           mode: selectedMode,
           testData: testData
-        })
+        }),
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
+      console.log('📡 API Response Status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error Response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
       const result = await response.json();
+      console.log('📊 Full API Response:', result);
       
       if (result.success) {
         console.log('✅ Test execution successful:', result.result);
@@ -74,12 +98,18 @@ const Index = () => {
         setCurrentStep('results');
       } else {
         console.error('❌ Test execution failed:', result.error);
-        alert(`Test execution failed: ${result.error}`);
+        setApiError(result.error || 'Unknown error occurred');
       }
       
     } catch (error) {
       console.error('❌ API call failed:', error);
-      alert(`Failed to connect to test automation server: ${error.message}`);
+      if (error.name === 'AbortError') {
+        setApiError('Request timeout - Flask server may not be running or test execution took too long');
+      } else if (error.message.includes('fetch')) {
+        setApiError('Cannot connect to Flask server. Make sure Python Flask app is running on http://localhost:5000');
+      } else {
+        setApiError(`API Error: ${error.message}`);
+      }
     } finally {
       setIsExecuting(false);
     }
@@ -90,6 +120,8 @@ const Index = () => {
     setCurrentStep('select');
     setTestData({});
     setIsExecuting(false);
+    setTestResults(null);
+    setApiError(null);
   };
 
   return (
@@ -185,12 +217,25 @@ const Index = () => {
                     </div>
                     {Object.entries(testData).map(([key, value]) => (
                       <div key={key}>
-                        <span className="font-medium capitalize">{key}:</span>
+                        <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
                         <span className="ml-2">{value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
+
+                {/* API Error Display */}
+                {apiError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <div className="text-red-600 font-semibold">Connection Error:</div>
+                    </div>
+                    <div className="text-red-700 text-sm mt-2">{apiError}</div>
+                    <div className="text-red-600 text-xs mt-2">
+                      Make sure your Flask server is running: <code>python app.py</code>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex space-x-4 justify-center">
                   <Button 
