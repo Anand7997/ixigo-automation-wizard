@@ -1,4 +1,3 @@
-
 import pyodbc
 from config import Config
 from datetime import datetime
@@ -6,27 +5,31 @@ import json
 
 class DatabaseOperations:
     def __init__(self):
-        self.connection_string = Config.SSMS_CONNECTION_STRING
+        self.config = Config()
     
     def get_connection(self):
-        return pyodbc.connect(self.connection_string)
+        return pyodbc.connect(self.config.SSMS_CONNECTION_STRING)
     
     def get_xpath_for_test_case(self, test_case_id, mode):
         """
         Fetch XPath elements and action types for given test case and mode
+        Updated to work with mode-specific tables like Bus_TestCases, Train_TestCases, etc.
         """
         conn = self.get_connection()
         cursor = conn.cursor()
         
         try:
-            query = """
+            # Construct table name based on mode
+            table_name = f"{mode.capitalize()}_TestCases"
+            
+            query = f"""
             SELECT element_name, xpath_value, action_type, expected_result, step_order
-            FROM xpath_elements 
-            WHERE test_case_id = ? AND booking_mode = ?
+            FROM {table_name}
+            WHERE test_case_id = ?
             ORDER BY step_order ASC
             """
             
-            cursor.execute(query, (test_case_id, mode))
+            cursor.execute(query, (test_case_id,))
             rows = cursor.fetchall()
             
             xpath_data = []
@@ -39,7 +42,7 @@ class DatabaseOperations:
                     'step_order': row[4]
                 })
             
-            print(f"✅ Found {len(xpath_data)} XPath elements for {test_case_id} - {mode}")
+            print(f"✅ Found {len(xpath_data)} XPath elements for {test_case_id} - {mode} from table {table_name}")
             return xpath_data
             
         except Exception as e:
@@ -135,39 +138,57 @@ class DatabaseOperations:
     
     def get_available_test_cases(self, mode=None):
         """
-        Get list of available test cases
+        Get list of available test cases from mode-specific tables
         """
         conn = self.get_connection()
         cursor = conn.cursor()
         
         try:
             if mode:
-                query = """
-                SELECT DISTINCT test_case_id, booking_mode, COUNT(*) as step_count
-                FROM xpath_elements 
-                WHERE booking_mode = ?
-                GROUP BY test_case_id, booking_mode
+                # Query specific mode table
+                table_name = f"{mode.capitalize()}_TestCases"
+                query = f"""
+                SELECT DISTINCT test_case_id, COUNT(*) as step_count
+                FROM {table_name}
+                GROUP BY test_case_id
                 ORDER BY test_case_id
                 """
-                cursor.execute(query, (mode,))
-            else:
-                query = """
-                SELECT DISTINCT test_case_id, booking_mode, COUNT(*) as step_count
-                FROM xpath_elements 
-                GROUP BY test_case_id, booking_mode
-                ORDER BY booking_mode, test_case_id
-                """
                 cursor.execute(query)
-            
-            rows = cursor.fetchall()
-            
-            test_cases = []
-            for row in rows:
-                test_cases.append({
-                    'test_case_id': row[0],
-                    'booking_mode': row[1],
-                    'step_count': row[2]
-                })
+                
+                rows = cursor.fetchall()
+                test_cases = []
+                for row in rows:
+                    test_cases.append({
+                        'test_case_id': row[0],
+                        'booking_mode': mode,
+                        'step_count': row[1]
+                    })
+            else:
+                # Query all mode tables
+                modes = ['flight', 'bus', 'train', 'hotel']
+                test_cases = []
+                
+                for booking_mode in modes:
+                    try:
+                        table_name = f"{booking_mode.capitalize()}_TestCases"
+                        query = f"""
+                        SELECT DISTINCT test_case_id, COUNT(*) as step_count
+                        FROM {table_name}
+                        GROUP BY test_case_id
+                        ORDER BY test_case_id
+                        """
+                        cursor.execute(query)
+                        rows = cursor.fetchall()
+                        
+                        for row in rows:
+                            test_cases.append({
+                                'test_case_id': row[0],
+                                'booking_mode': booking_mode,
+                                'step_count': row[1]
+                            })
+                    except Exception as table_error:
+                        print(f"⚠️ Table {table_name} not found or accessible: {str(table_error)}")
+                        continue
             
             return test_cases
             
